@@ -29,7 +29,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Sync branches and tags
+      - name: Sync default branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          result="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/merge-upstream" -f branch=main)"
+          echo "$result" | jq .
+
+      - name: Sync extra branches and tags
         run: |
           set -euo pipefail
 
@@ -38,14 +47,6 @@ jobs:
           git fetch upstream --prune --tags
 
           default_branch="main"
-          git checkout "$default_branch"
-          git merge --no-edit "upstream/$default_branch"
-
-          if ! git diff --quiet "origin/$default_branch"..HEAD; then
-            git push origin "HEAD:$default_branch"
-          else
-            echo "Default branch is already up to date."
-          fi
 
           git for-each-ref --format='%(refname:short)' refs/remotes/upstream | while IFS= read -r remote_branch; do
             branch="${remote_branch#upstream/}"
