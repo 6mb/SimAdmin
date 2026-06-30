@@ -38,36 +38,13 @@ jobs:
           result="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/merge-upstream" -f branch=main)"
           echo "$result" | jq .
 
-      - name: Sync extra branches and tags
+      - name: Sync tags
         run: |
           set -euo pipefail
 
           git remote add upstream https://github.com/3899/SimAdmin.git
           git fetch origin --prune --tags
           git fetch upstream --prune --tags
-
-          default_branch="main"
-
-          git for-each-ref --format='%(refname:short)' refs/remotes/upstream | while IFS= read -r remote_branch; do
-            branch="${remote_branch#upstream/}"
-
-            if [ "$branch" = "HEAD" ] || [ "$branch" = "$default_branch" ]; then
-              continue
-            fi
-
-            upstream_ref="refs/remotes/upstream/$branch"
-            origin_ref="refs/remotes/origin/$branch"
-
-            if git show-ref --verify --quiet "$origin_ref"; then
-              if git merge-base --is-ancestor "$origin_ref" "$upstream_ref"; then
-                git push origin "$upstream_ref:refs/heads/$branch"
-              else
-                echo "Skipping divergent branch: $branch"
-              fi
-            else
-              git push origin "$upstream_ref:refs/heads/$branch"
-            fi
-          done
 
           origin_tags="$RUNNER_TEMP/origin-tags.txt"
           git ls-remote --tags origin > "$origin_tags"
