@@ -1,0 +1,89 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync fork with upstream
+    if: github.repository == '6mb/SimAdmin'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync branches and tags
+        run: |
+          set -euo pipefail
+
+          git remote add upstream https://github.com/3899/SimAdmin.git
+          git fetch origin --prune --tags
+          git fetch upstream --prune --tags
+
+          default_branch="main"
+          git checkout "$default_branch"
+          git merge --no-edit "upstream/$default_branch"
+
+          if ! git diff --quiet "origin/$default_branch"..HEAD; then
+            git push origin "HEAD:$default_branch"
+          else
+            echo "Default branch is already up to date."
+          fi
+
+          git for-each-ref --format='%(refname:short)' refs/remotes/upstream | while IFS= read -r remote_branch; do
+            branch="${remote_branch#upstream/}"
+
+            if [ "$branch" = "HEAD" ] || [ "$branch" = "$default_branch" ]; then
+              continue
+            fi
+
+            upstream_ref="refs/remotes/upstream/$branch"
+            origin_ref="refs/remotes/origin/$branch"
+
+            if git show-ref --verify --quiet "$origin_ref"; then
+              if git merge-base --is-ancestor "$origin_ref" "$upstream_ref"; then
+                git push origin "$upstream_ref:refs/heads/$branch"
+              else
+                echo "Skipping divergent branch: $branch"
+              fi
+            else
+              git push origin "$upstream_ref:refs/heads/$branch"
+            fi
+          done
+
+          origin_tags="$RUNNER_TEMP/origin-tags.txt"
+          git ls-remote --tags origin > "$origin_tags"
+
+          git for-each-ref --format='%(refname)' refs/tags | while IFS= read -r tag_ref; do
+            tag_name="${tag_ref#refs/tags/}"
+
+            if grep -Fq "refs/tags/$tag_name" "$origin_tags"; then
+              continue
+            fi
+
+            git push origin "$tag_ref:$tag_ref"
+          done
+
+      - name: Sync releases and assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_REPO: 3899/SimAdmin
+          TARGET_REPO: ${{ github.repository }}
+        run: ./.github/scripts/sync-upstream-releases.sh
