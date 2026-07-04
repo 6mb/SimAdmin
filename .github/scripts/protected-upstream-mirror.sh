@@ -100,8 +100,8 @@ target_tags="$tmp_dir/target-tags.tsv"
 source_tag_refs="$tmp_dir/source-tag-refs.txt"
 target_tag_refs="$tmp_dir/target-tag-refs.txt"
 
-git ls-remote --tags upstream | awk '$2 !~ /\^{}$/ {print $2 "\t" $1}' | sort > "$source_tags"
-git ls-remote --tags origin | awk '$2 !~ /\^{}$/ {print $2 "\t" $1}' | sort > "$target_tags"
+git ls-remote --tags upstream | awk 'index($2, "^{}") == 0 {print $2 "\t" $1}' | sort > "$source_tags"
+git ls-remote --tags origin | awk 'index($2, "^{}") == 0 {print $2 "\t" $1}' | sort > "$target_tags"
 cut -f1 "$source_tags" > "$source_tag_refs"
 cut -f1 "$target_tags" > "$target_tag_refs"
 
