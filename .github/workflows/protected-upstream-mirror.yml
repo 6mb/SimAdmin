@@ -1,0 +1,38 @@
+name: Protected Upstream Mirror
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: protected-upstream-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    name: Mirror upstream with delete protection
+    if: github.repository == '6mb/SimAdmin'
+    runs-on: ubuntu-latest
+
+    env:
+      SOURCE_REPO: 3899/SimAdmin
+      TARGET_REPO: ${{ github.repository }}
+      TARGET_BRANCH: main
+      BACKUP_PREFIX: backups
+      MIN_TREE_ENTRIES: '50'
+      MIN_TAG_COUNT: '1'
+      MIN_RELEASE_COUNT: '1'
+      REQUIRED_PATHS: 'README.md backend frontend static'
+
+    steps:
+      - name: Checkout control branch
+        uses: actions/checkout@v4
+
+      - name: Mirror upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./.github/scripts/protected-upstream-mirror.sh
