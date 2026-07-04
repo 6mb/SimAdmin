@@ -84,6 +84,7 @@ if [ "$target_sha" = "$source_sha" ]; then
   notice "$TARGET_REPO:$TARGET_BRANCH is already at upstream SHA $source_sha."
 else
   if [ -n "$target_sha" ]; then
+    git fetch --no-tags origin "+refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH"
     backup_ref="refs/heads/$BACKUP_PREFIX/$TARGET_BRANCH/$(date -u +%Y%m%d-%H%M%S)"
     notice "Saving current $TARGET_BRANCH ($target_sha) to $backup_ref before mirror push."
     git push origin "$target_sha:$backup_ref"
